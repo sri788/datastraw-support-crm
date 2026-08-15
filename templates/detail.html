@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Details | Datastraw CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen">
+
+    <header class="border-b border-slate-800 bg-slate-950/50 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="/" class="text-xs font-semibold text-slate-400 hover:text-white flex items-center space-x-2">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back to Dashboard</span>
+            </a>
+            <div class="flex items-center space-x-3">
+                <button onclick="runAiTriage(event)" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span id="aiBtnText">AI Auto-Triage</span>
+                </button>
+                <span class="text-xs text-slate-400">Status:</span>
+                <select id="statusSelect" onchange="updateStatus()" class="bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Closed">Closed</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 mb-8 shadow-xl">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span id="ticketIdBadge" class="text-xs font-bold text-indigo-400 tracking-wider">TKT-DS-0000</span>
+                    <h1 id="ticketSubject" class="text-xl font-bold text-white mt-1">Loading Ticket...</h1>
+                </div>
+                <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-semibold border border-slate-700 bg-slate-800">Status</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 border-y border-slate-700/50 mb-4 text-xs">
+                <div>
+                    <span class="text-slate-400 uppercase font-semibold">Customer Name:</span>
+                    <span id="custName" class="text-slate-200 font-medium ml-2">-</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 uppercase font-semibold">Customer Email:</span>
+                    <span id="custEmail" class="text-slate-200 font-medium ml-2">-</span>
+                </div>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Issue Description</span>
+                <div id="ticketDesc" class="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
+                    Loading description...
+                </div>
+            </div>
+        </div>
+
+        <!-- notes feed -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+            <h2 class="text-base font-bold text-white mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-comments text-indigo-400"></i>
+                <span>Team Notes & Activity</span>
+            </h2>
+
+            <form onsubmit="handleAddNote(event)" class="mb-6">
+                <div class="flex gap-3">
+                    <input type="text" id="noteInput" required placeholder="Add an internal note or update..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 text-slate-100">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl font-medium text-sm transition">Post Note</button>
+                </div>
+            </form>
+
+            <div id="notesContainer" class="space-y-3">
+                <p class="text-xs text-slate-500">No notes added yet.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // jinja injects ticket id
+        const ticketId = "{{ ticket_id }}";
+
+        async function runAiTriage(e) {
+            const btn = document.getElementById('aiBtnText');
+            btn.innerText = "Analyzing...";
+            await fetch(`/api/tickets/${ticketId}/ai-triage`, { method: 'POST' });
+            btn.innerText = "AI Auto-Triage";
+            loadTicket();
+        }
+
+        async function loadTicket() {
+            const res = await fetch(`/api/tickets/${ticketId}`);
+            if (!res.ok) {
+                alert("Ticket not found!");
+                window.location.href = "/";
+                return;
+            }
+
+            const data = await res.json();
+            document.getElementById('ticketIdBadge').innerText = data.ticket_id;
+            document.getElementById('ticketSubject').innerText = data.subject;
+            document.getElementById('custName').innerText = data.customer_name;
+            document.getElementById('custEmail').innerText = data.customer_email;
+            document.getElementById('ticketDesc').innerText = data.description;
+            document.getElementById('statusSelect').value = data.status;
+
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = data.status;
+            if (data.status === 'Open') badge.className = 'px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+            if (data.status === 'In Progress') badge.className = 'px-3 py-1 rounded-full text-xs font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/20';
+            if (data.status === 'Closed') badge.className = 'px-3 py-1 rounded-full text-xs font-semibold border bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+            renderNotes(data.notes || []);
+        }
+
+        function renderNotes(notes) {
+            const container = document.getElementById('notesContainer');
+            if (!notes.length) {
+                container.innerHTML = `<p class="text-xs text-slate-500">No internal notes posted yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = notes.map(n => `
+                <div class="bg-slate-900/40 border border-slate-700/30 rounded-xl p-3 text-xs">
+                    <div class="flex justify-between items-center text-slate-400 mb-1">
+                        <span class="font-semibold text-indigo-400">Support Agent</span>
+                        <span>${new Date(n.created_at).toLocaleString()}</span>
+                    </div>
+                    <p class="text-slate-200">${n.note_text}</p>
+                </div>
+            `).join('');
+        }
+
+        async function updateStatus() {
+            const st = document.getElementById('statusSelect').value;
+            await fetch(`/api/tickets/${ticketId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: st })
+            });
+            loadTicket();
+        }
+
+        async function handleAddNote(e) {
+            e.preventDefault();
+            const txt = document.getElementById('noteInput').value;
+            await fetch(`/api/tickets/${ticketId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note_text: txt })
+            });
+
+            document.getElementById('noteInput').value = '';
+            loadTicket();
+        }
+
+        loadTicket();
+    </script>
+</body>
+</html>
